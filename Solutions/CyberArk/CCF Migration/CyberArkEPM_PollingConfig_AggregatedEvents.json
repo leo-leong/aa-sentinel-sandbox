@@ -1,0 +1,90 @@
+[
+  {
+    "type": "Microsoft.SecurityInsights/dataConnectors",
+    "apiVersion": "2023-02-01-preview",
+    "name": "CyberArkEPMAggregatedEventsConnector",
+    "location": "{{location}}",
+    "kind": "RestApiPoller",
+    "properties": {
+      "connectorDefinitionName": "CyberArkEPMConnectorDefinition",
+      "dataType": "CyberArkEPMAggregatedEvents_CL",
+      "dcrConfig": {
+        "streamName": "Custom-CyberArkEPMAggregatedEvents_CL",
+        "dataCollectionEndpoint": "{{dataCollectionEndpoint}}",
+        "dataCollectionRuleImmutableId": "{{dataCollectionRuleImmutableId}}"
+      },
+      "auth": {
+        "type": "OAuth2",
+        "GrantType": "client_credentials",
+        "ClientId": "{{clientId}}",
+        "ClientSecret": "{{clientSecret}}",
+        "TokenEndpoint": "{{identityEndpoint}}/oauth2/token/{{webAppId}}",
+        "TokenEndpointHeaders": {
+          "Content-Type": "application/x-www-form-urlencoded"
+        }
+      },
+      "request": {
+        "apiEndpoint": "{{BaseUrl}}/EPM/API/Sets",
+        "httpMethod": "GET",
+        "queryTimeFormat": "yyyy-MM-ddTHH:mm:ssZ",
+        "rateLimitQPS": 10,
+        "queryWindowInMin": 60,
+        "queryWindowDelayInMin": 10,
+        "retryCount": 3,
+        "timeoutInSeconds": 60,
+        "headers": {
+          "Content-Type": "application/json",
+          "x-cybr-telemetry": "aW49TWljcm9zb2Z0IFNlbnRpbmVsIEVQTSZpdj0yLjAmdm49TWljcm9zb2Z0Jml0PVNJTSE="
+        }
+      },
+      "response": {
+        "eventsJsonPaths": [ "$.Sets" ],
+        "format": "json"
+      },
+      "stepInfo": {
+        "stepType": "Nested",
+        "nextSteps": [
+          {
+            "stepId": "fetchAggregatedEvents",
+            "stepPlaceholdersParsingKql": "source | project _SetId = tostring(Id)"
+          }
+        ]
+      },
+      "stepCollectorConfigs": {
+        "fetchAggregatedEvents": {
+          "request": {
+            "apiEndpoint": "{{BaseUrl}}/EPM/API/Sets/$_SetId$/events/aggregations/search",
+            "httpMethod": "POST",
+            "isPostPayloadJson": true,
+            "queryTimeFormat": "yyyy-MM-ddTHH:mm:ssZ",
+            "rateLimitQPS": 10,
+            "queryWindowInMin": 60,
+            "queryWindowDelayInMin": 10,
+            "retryCount": 3,
+            "timeoutInSeconds": 60,
+            "headers": {
+              "Content-Type": "application/json",
+              "x-cybr-telemetry": "aW49TWljcm9zb2Z0IFNlbnRpbmVsIEVQTSZpdj0yLjAmdm49TWljcm9zb2Z0Jml0PVNJTSE="
+            },
+            "queryParameters": {
+              "nextCursor": "start",
+              "limit": "1000"
+            },
+            "queryParametersTemplate": "{\"filter\": \"arrivalTime GE {_QueryWindowStartTime} AND arrivalTime LE {_QueryWindowEndTime}\"}"
+          },
+          "paging": {
+            "pagingType": "NextPageToken",
+            "nextPageTokenJsonPath": "$.nextCursor",
+            "NextPageParaName": "nextCursor",
+            "pageSize": 1000,
+            "pageSizeParameterName": "limit"
+          },
+          "response": {
+            "eventsJsonPaths": [ "$.events" ],
+            "format": "json"
+          }
+        }
+      }
+    }
+  }
+]
